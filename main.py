@@ -1,39 +1,48 @@
 import os
-import random
 import asyncio
 from telegram import Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from openai import AsyncOpenAI
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 bot = Bot(token=BOT_TOKEN)
+client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
-quotes = [
-    "🔥 Never give up. Every expert was once a beginner.",
-    "💪 Discipline beats motivation.",
-    "🚀 Success comes from consistency, not luck.",
-    "🏆 Keep going. Your future self will thank you.",
-    "⏳ Small progress every hour is still progress.",
-    "🌟 Dreams work when you do.",
-    "🔥 Winners never quit, and quitters never win.",
-    "📈 Stay focused. Stay patient. Stay strong.",
-    "💯 One more step today is better than none.",
-    "⚡ Believe in yourself and keep moving forward."
-]
+async def generate_message():
+    response = await client.chat.completions.create(
+        model="gpt-4.1-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a world-class motivational speaker."
+            },
+            {
+                "role": "user",
+                "content": (
+                    "Write one unique motivational message under 120 words. "
+                    "Make it powerful, inspiring, and end with 2 relevant emojis."
+                )
+            }
+        ]
+    )
+    return response.choices[0].message.content
 
-async def send_quote():
+async def send_message():
+    text = await generate_message()
     await bot.send_message(
         chat_id=CHAT_ID,
-        text=random.choice(quotes)
+        text=text
     )
 
 async def main():
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(send_quote, "interval", hours=1)
+    scheduler.add_job(send_message, "interval", hours=1)
     scheduler.start()
 
-    await send_quote()
+    await send_message()
 
     while True:
         await asyncio.sleep(3600)
